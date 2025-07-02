@@ -62,9 +62,9 @@ class FractalApp:
         self.root.title("Фрактал и дерево построения")
 
         # Параметры
-        self.max_depth = 4
+        self.max_depth = 5  # Максимальная глубина 5 (уровни 0-5)
         self.base_size = 300
-        self.tree_width = 600
+        self.tree_width = 800
         self.tree_height = 600
         self.selected_level = None
         self.node_radius = 15
@@ -75,21 +75,44 @@ class FractalApp:
 
         # Элементы управления
         self.control_frame = tk.Frame(root)
-        self.level_label = tk.Label(self.control_frame, text="Выберите уровень:")
-        self.show_all_button = tk.Button(self.control_frame, text="Показать все уровни",
-                                         command=self.show_all_levels)
-        self.reset_button = tk.Button(self.control_frame, text="Сбросить выбор",
-                                      command=self.reset_selection)
+
+        # Управление уровнями (0-5)
+        self.level_control_frame = tk.Frame(self.control_frame)
+        self.level_label = tk.Label(self.level_control_frame, text="Выберите уровень (0-5):")
+        self.level_scale = tk.Scale(self.level_control_frame, from_=0, to=self.max_depth, orient=tk.HORIZONTAL,
+                                    command=self.select_level)
+        self.level_scale.set(self.max_depth)
+
+        # Управление глубиной (1-5)
+        self.depth_control_frame = tk.Frame(self.control_frame)
+        self.depth_label = tk.Label(self.depth_control_frame, text="Макс. уровней (1-5):")
+        self.depth_scale = tk.Scale(self.depth_control_frame, from_=1, to=5, orient=tk.HORIZONTAL,
+                                    command=self.change_max_depth)
+        self.depth_scale.set(self.max_depth)
 
         # Размещение элементов
         self.fractal_canvas.grid(row=0, column=0, padx=10, pady=10)
         self.tree_canvas.grid(row=0, column=1, padx=10, pady=10)
         self.control_frame.grid(row=1, column=0, columnspan=2, pady=10)
-        self.level_label.pack(side=tk.LEFT, padx=5)
-        self.show_all_button.pack(side=tk.LEFT, padx=5)
-        self.reset_button.pack(side=tk.LEFT, padx=5)
+
+        self.level_control_frame.pack(fill=tk.X, padx=5, pady=5)
+        self.level_label.pack(side=tk.LEFT)
+        self.level_scale.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        self.depth_control_frame.pack(fill=tk.X, padx=5, pady=5)
+        self.depth_label.pack(side=tk.LEFT)
+        self.depth_scale.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         # Построение дерева
+        self.init_fractal()
+
+        # Начальное отображение
+        self.show_all_levels()
+
+        # Привязка событий
+        self.tree_canvas.bind("<Button-1>", self.on_tree_click)
+
+    def init_fractal(self):
         height = self.base_size * sqrt(3) / 2
         p1 = (100, 400)
         p2 = (100 + self.base_size, 400)
@@ -97,12 +120,6 @@ class FractalApp:
 
         self.fractal_tree = FractalTree(self.max_depth)
         self.fractal_tree.build(p1, p2, p3)
-
-        # Начальное отображение
-        self.show_all_levels()
-
-        # Привязка событий
-        self.tree_canvas.bind("<Button-1>", self.on_tree_click)
 
     def draw_fractal(self, node, selected_depth=None):
         if selected_depth is None or node.depth == selected_depth:
@@ -163,6 +180,7 @@ class FractalApp:
         clicked_node = self.find_clicked_node(self.fractal_tree.root, event.x, event.y)
         if clicked_node:
             self.selected_level = clicked_node.depth
+            self.level_scale.set(self.selected_level)
             self.update_display()
 
     def find_clicked_node(self, node, x, y):
@@ -194,15 +212,22 @@ class FractalApp:
         self.draw_tree(
             self.fractal_tree.root,
             self.tree_width // 2, 30,
-            initial_dx * 2, dy  # Умножаем на 2 для более широкого начального расстояния
+            initial_dx * 3, dy
         )
+
+    def select_level(self, value):
+        self.selected_level = int(value)
+        self.update_display()
+
+    def change_max_depth(self, value):
+        self.max_depth = int(value)
+        self.level_scale.config(to=self.max_depth)
+        self.init_fractal()
+        self.show_all_levels()
 
     def show_all_levels(self):
         self.selected_level = None
-        self.update_display()
-
-    def reset_selection(self):
-        self.selected_level = None
+        self.level_scale.set(self.max_depth)
         self.update_display()
 
 
