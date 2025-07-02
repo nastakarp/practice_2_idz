@@ -10,7 +10,7 @@ class FractalNode:
         self.p3 = p3
         self.color = color
         self.children = []
-        self.tree_x = 0
+        self.tree_x = 0  # Координаты узла в дереве
         self.tree_y = 0
 
     def add_child(self, child):
@@ -62,10 +62,10 @@ class FractalApp:
         self.root.title("Фрактал и дерево построения")
 
         # Параметры
-        self.max_depth = 5  # Максимальная глубина 5 (уровни 0-5)
+        self.max_depth = 5
         self.base_size = 300
         self.tree_width = 800
-        self.tree_height = 600
+        self.tree_height = 400
         self.selected_level = None
         self.node_radius = 15
 
@@ -76,14 +76,14 @@ class FractalApp:
         # Элементы управления
         self.control_frame = tk.Frame(root)
 
-        # Управление уровнями (0-5)
+        # Управление уровнями
         self.level_control_frame = tk.Frame(self.control_frame)
         self.level_label = tk.Label(self.level_control_frame, text="Выберите уровень (0-5):")
         self.level_scale = tk.Scale(self.level_control_frame, from_=0, to=self.max_depth, orient=tk.HORIZONTAL,
                                     command=self.select_level)
         self.level_scale.set(self.max_depth)
 
-        # Управление глубиной (1-5)
+        # Управление глубиной
         self.depth_control_frame = tk.Frame(self.control_frame)
         self.depth_label = tk.Label(self.depth_control_frame, text="Макс. уровней (1-5):")
         self.depth_scale = tk.Scale(self.depth_control_frame, from_=1, to=5, orient=tk.HORIZONTAL,
@@ -91,9 +91,9 @@ class FractalApp:
         self.depth_scale.set(self.max_depth)
 
         # Размещение элементов
-        self.fractal_canvas.grid(row=0, column=0, padx=10, pady=10)
-        self.tree_canvas.grid(row=0, column=1, padx=10, pady=10)
-        self.control_frame.grid(row=1, column=0, columnspan=2, pady=10)
+        self.fractal_canvas.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        self.tree_canvas.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
+        self.control_frame.grid(row=1, column=0, columnspan=2, pady=10, sticky="ew")
 
         self.level_control_frame.pack(fill=tk.X, padx=5, pady=5)
         self.level_label.pack(side=tk.LEFT)
@@ -103,17 +103,21 @@ class FractalApp:
         self.depth_label.pack(side=tk.LEFT)
         self.depth_scale.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
-        # Построение дерева
+        # Инициализация фрактала и дерева
         self.init_fractal()
+        self.calculate_tree_layout()  # Рассчитываем координаты дерева
 
         # Начальное отображение
         self.show_all_levels()
 
         # Привязка событий
         self.tree_canvas.bind("<Button-1>", self.on_tree_click)
+        self.root.bind("<Configure>", self.on_window_resize)  # Обработка изменения размеров окна
 
     def init_fractal(self):
+        """Инициализация фрактала (без масштабирования)"""
         height = self.base_size * sqrt(3) / 2
+
         p1 = (100, 400)
         p2 = (100 + self.base_size, 400)
         p3 = (100 + self.base_size / 2, 400 - height)
@@ -121,7 +125,37 @@ class FractalApp:
         self.fractal_tree = FractalTree(self.max_depth)
         self.fractal_tree.build(p1, p2, p3)
 
+    def calculate_tree_layout(self):
+        """Предварительный расчет координат узлов дерева"""
+        if not hasattr(self, 'fractal_tree') or not self.fractal_tree.root:
+            return
+
+        initial_dx = self.tree_width / (2 ** (self.fractal_tree.max_depth + 1))
+        dy = self.tree_height / (self.fractal_tree.max_depth + 1)
+
+        # Рекурсивно вычисляем координаты
+        self._calculate_node_position(
+            self.fractal_tree.root,
+            self.tree_width // 2, 30,
+            initial_dx * 3, dy
+        )
+
+    def _calculate_node_position(self, node, x, y, dx, dy):
+        """Рекурсивный расчет позиции узла и его детей"""
+        node.tree_x = x
+        node.tree_y = y
+
+        if node.children:
+            total_width = dx * (len(node.children) - 1)
+            start_x = x - total_width / 2
+
+            for i, child in enumerate(node.children):
+                child_x = start_x + i * dx
+                child_y = y + dy
+                self._calculate_node_position(child, child_x, child_y, dx / 2, dy)
+
     def draw_fractal(self, node, selected_depth=None):
+        """Отрисовка фрактала"""
         if selected_depth is None or node.depth == selected_depth:
             self.fractal_canvas.create_polygon(
                 [node.p1, node.p2, node.p3],
@@ -131,52 +165,34 @@ class FractalApp:
         for child in node.children:
             self.draw_fractal(child, selected_depth)
 
-    def draw_tree(self, node, x, y, dx, dy):
+    def draw_tree(self, node):
+        """Отрисовка дерева (использует предварительно рассчитанные координаты)"""
         if node is None:
             return
 
-        # Сохраняем координаты узла для обработки кликов
-        node.tree_x = x
-        node.tree_y = y
-
-        # Определяем стиль узла в зависимости от выбора
         outline = 'red' if self.selected_level == node.depth else 'black'
         width = 3 if self.selected_level == node.depth else 1
 
-        # Рисуем узел дерева
         self.tree_canvas.create_oval(
-            x - self.node_radius, y - self.node_radius,
-            x + self.node_radius, y + self.node_radius,
+            node.tree_x - self.node_radius, node.tree_y - self.node_radius,
+            node.tree_x + self.node_radius, node.tree_y + self.node_radius,
             fill=node.color, outline=outline, width=width
         )
 
-        # Рисуем текст с уровнем
         self.tree_canvas.create_text(
-            x, y, text=str(node.depth),
+            node.tree_x, node.tree_y, text=str(node.depth),
             font=('Arial', 10), fill='white'
         )
 
-        # Рисуем связи с детьми
-        if node.children:
-            # Рассчитываем ширину для поддерева
-            total_width = dx * (len(node.children) - 1)
-            start_x = x - total_width / 2
-
-            for i, child in enumerate(node.children):
-                child_x = start_x + i * dx
-                child_y = y + dy
-
-                self.tree_canvas.create_line(
-                    x, y + self.node_radius,
-                    child_x, child_y - self.node_radius,
-                    fill=node.color, width=2
-                )
-
-                # Рекурсивно рисуем детей с уменьшенным dx
-                self.draw_tree(child, child_x, child_y, dx / 2, dy)
+        for child in node.children:
+            self.tree_canvas.create_line(
+                node.tree_x, node.tree_y + self.node_radius,
+                child.tree_x, child.tree_y - self.node_radius,
+                fill=node.color, width=2
+            )
+            self.draw_tree(child)
 
     def on_tree_click(self, event):
-        # Находим узел, по которому кликнули
         clicked_node = self.find_clicked_node(self.fractal_tree.root, event.x, event.y)
         if clicked_node:
             self.selected_level = clicked_node.depth
@@ -184,16 +200,13 @@ class FractalApp:
             self.update_display()
 
     def find_clicked_node(self, node, x, y):
-        # Проверяем текущий узел
         if ((node.tree_x - x) ** 2 + (node.tree_y - y) ** 2) <= self.node_radius ** 2:
             return node
 
-        # Проверяем детей
         for child in node.children:
             found = self.find_clicked_node(child, x, y)
             if found:
                 return found
-
         return None
 
     def update_display(self):
@@ -205,15 +218,7 @@ class FractalApp:
         else:
             self.draw_fractal(self.fractal_tree.root)
 
-        # Рассчитываем начальное dx на основе ширины холста и глубины дерева
-        initial_dx = self.tree_width / (2 ** (self.fractal_tree.max_depth + 1))
-        dy = self.tree_height / (self.fractal_tree.max_depth + 1)
-
-        self.draw_tree(
-            self.fractal_tree.root,
-            self.tree_width // 2, 30,
-            initial_dx * 3, dy
-        )
+        self.draw_tree(self.fractal_tree.root)
 
     def select_level(self, value):
         self.selected_level = int(value)
@@ -223,7 +228,21 @@ class FractalApp:
         self.max_depth = int(value)
         self.level_scale.config(to=self.max_depth)
         self.init_fractal()
+        self.calculate_tree_layout()  # Пересчитываем координаты дерева
         self.show_all_levels()
+
+    def on_window_resize(self, event):
+        """Обработка изменения размеров окна"""
+        if event.widget == self.root:
+            new_tree_width = event.width // 2
+            new_tree_height = event.height - 100
+
+            if new_tree_width > 0 and new_tree_height > 0:
+                self.tree_width = new_tree_width
+                self.tree_height = new_tree_height
+                self.tree_canvas.config(width=self.tree_width, height=self.tree_height)
+                self.calculate_tree_layout()  # Пересчитываем координаты дерева
+                self.update_display()
 
     def show_all_levels(self):
         self.selected_level = None
