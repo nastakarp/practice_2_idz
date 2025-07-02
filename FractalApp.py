@@ -65,7 +65,7 @@ class FractalApp:
         self.max_depth = 5
         self.base_size = 300
         self.tree_width = 800
-        self.tree_height = 400
+        self.tree_height = 500
         self.selected_level = None
         self.node_radius = 15
 
@@ -112,7 +112,7 @@ class FractalApp:
 
         # Привязка событий
         self.tree_canvas.bind("<Button-1>", self.on_tree_click)
-        self.root.bind("<Configure>", self.on_window_resize)  # Обработка изменения размеров окна
+        #self.root.bind("<Configure>", self.on_window_resize)  # Обработка изменения размеров окна
 
     def init_fractal(self):
         """Инициализация фрактала (без масштабирования)"""
@@ -131,13 +131,13 @@ class FractalApp:
             return
 
         initial_dx = self.tree_width / (2 ** (self.fractal_tree.max_depth + 1))
-        dy = self.tree_height / (self.fractal_tree.max_depth + 1)
+        dy = 80
 
         # Рекурсивно вычисляем координаты
         self._calculate_node_position(
             self.fractal_tree.root,
             self.tree_width // 2, 30,
-            initial_dx * 3, dy
+            initial_dx * 5, dy
         )
 
     def _calculate_node_position(self, node, x, y, dx, dy):
