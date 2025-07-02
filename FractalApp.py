@@ -63,7 +63,7 @@ class FractalApp:
 
         # Параметры
         self.max_depth = 4
-        self.base_size = 180
+        self.base_size = 300
         self.tree_width = 600
         self.tree_height = 600
         self.selected_level = None
@@ -140,17 +140,23 @@ class FractalApp:
         )
 
         # Рисуем связи с детьми
-        for i, child in enumerate(node.children):
-            child_x = x + dx * (i - len(node.children) / 2 + 0.5)
-            child_y = y + dy
+        if node.children:
+            # Рассчитываем ширину для поддерева
+            total_width = dx * (len(node.children) - 1)
+            start_x = x - total_width / 2
 
-            self.tree_canvas.create_line(
-                x, y + self.node_radius,
-                child_x, child_y - self.node_radius,
-                fill=node.color, width=2
-            )
+            for i, child in enumerate(node.children):
+                child_x = start_x + i * dx
+                child_y = y + dy
 
-            self.draw_tree(child, child_x, child_y, dx * 0.6, dy)
+                self.tree_canvas.create_line(
+                    x, y + self.node_radius,
+                    child_x, child_y - self.node_radius,
+                    fill=node.color, width=2
+                )
+
+                # Рекурсивно рисуем детей с уменьшенным dx
+                self.draw_tree(child, child_x, child_y, dx / 2, dy)
 
     def on_tree_click(self, event):
         # Находим узел, по которому кликнули
@@ -181,13 +187,14 @@ class FractalApp:
         else:
             self.draw_fractal(self.fractal_tree.root)
 
-        dx = self.tree_width / (2 ** (self.fractal_tree.max_depth + 1))
+        # Рассчитываем начальное dx на основе ширины холста и глубины дерева
+        initial_dx = self.tree_width / (2 ** (self.fractal_tree.max_depth + 1))
         dy = self.tree_height / (self.fractal_tree.max_depth + 1)
 
         self.draw_tree(
             self.fractal_tree.root,
             self.tree_width // 2, 30,
-            dx, dy
+            initial_dx * 2, dy  # Умножаем на 2 для более широкого начального расстояния
         )
 
     def show_all_levels(self):
